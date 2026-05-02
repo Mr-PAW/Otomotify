@@ -676,7 +676,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                   )
                                 else
                                   Text(
-                                    'Jawab: ${optionLabels[userAnswer!]} - ${question.options[userAnswer]}',
+                                    'Jawab: ${optionLabels[userAnswer]} - ${question.options[userAnswer]}',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: isCorrect

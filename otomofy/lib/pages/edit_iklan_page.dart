@@ -24,6 +24,7 @@ class _EditIklanPageState extends State<EditIklanPage> {
 
   File? _imageFile;
   bool _isLoading = false;
+  bool _isTerjual = false; // Buat nampung status laku/belum
 
   @override
   void initState() {
@@ -33,6 +34,12 @@ class _EditIklanPageState extends State<EditIklanPage> {
     _tahunController.text = widget.mobil['tahun'].toString();
     _deskripsiController.text = widget.mobil['deskripsi'];
     _hargaController.text = widget.mobil['harga'].toString();
+
+    // Cek dengan aman apakah field 'terjual' ada di database lu
+    var data = widget.mobil.data() as Map<String, dynamic>;
+    if (data.containsKey('terjual')) {
+      _isTerjual = data['terjual'];
+    }
   }
 
   Future<void> _pickImage() async {
@@ -88,7 +95,6 @@ class _EditIklanPageState extends State<EditIklanPage> {
 
         if (streamedResponse.statusCode == 200) {
           finalImageUrl = jsonResponse['secure_url'];
-          print("DEBUG: URL BARU: $finalImageUrl");
         } else {
           throw "Gagal upload: ${jsonResponse['error']['message']}";
         }
@@ -112,16 +118,159 @@ class _EditIklanPageState extends State<EditIklanPage> {
           backgroundColor: Colors.green,
         ),
       );
-
       Navigator.pop(context);
     } catch (e) {
-      print("DEBUG ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Aduh Gagal: $e"), backgroundColor: Colors.red),
       );
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  // --- FUNGSI TANDAI TERJUAL ---
+  void _tandaiTerjual() {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            "Tandai Terjual",
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+          ),
+          content: Text(
+            "Apakah anda yakin mobil ini sudah laku? Iklan akan disembunyikan dari Marketplace namun tetap ada di Iklan Saya.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("Batal", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                setState(() => _isLoading = true);
+                try {
+                  // 1. Update status mobil jadi terjual
+                  await FirebaseFirestore.instance
+                      .collection('mobil')
+                      .doc(widget.mobil.id)
+                      .update({'terjual': true});
+
+                  // 2. LOGIKA NOTIFIKASI: Cari siapa aja yang nge-favoritin mobil ini
+                  var favSnapshot = await FirebaseFirestore.instance
+                      .collection('favorit')
+                      .where('id_mobil', isEqualTo: widget.mobil.id)
+                      .get();
+
+                  // Format harga biar ada titiknya di notif
+                  String hargaRupiah = _hargaController.text.replaceAllMapped(
+                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                    (Match m) => '${m[1]}.',
+                  );
+
+                  // 3. Looping: Kirim notif ke mereka & Hapus dari favorit mereka
+                  for (var doc in favSnapshot.docs) {
+                    String idUserYgFavorit = doc['id'];
+
+                    // Bikin notif
+                    await FirebaseFirestore.instance.collection('notifikasi').add({
+                      'id_user': idUserYgFavorit,
+                      'pesan':
+                          "${_merekController.text} ${_namaController.text} seharga Rp $hargaRupiah sudah terjual",
+                      'isRead': false, // Belum dibaca
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
+
+                    // Hapus dari tabel favorit biar hilang dari halaman mereka
+                    await doc.reference.delete();
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Yey! Mobil laku terjual."),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Gagal: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              child: Text("Ya, Tandai", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // --- FUNGSI HAPUS IKLAN ---
+  void _hapusIklan() {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            "Hapus Iklan",
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+          content: Text(
+            "Apakah anda yakin menghapus iklan ini selamanya? Semua data terkait iklan ini akan hilang tanpa jejak.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text("Batal", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx); // Tutup dialog
+                setState(() => _isLoading = true);
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('mobil')
+                      .doc(widget.mobil.id)
+                      .delete();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Iklan berhasil dihapus."),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  Navigator.pop(context); // Balik ke halaman sebelumnya
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("Gagal menghapus: $e"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text("Ya, Hapus", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -211,6 +360,8 @@ class _EditIklanPageState extends State<EditIklanPage> {
               ),
             ),
             SizedBox(height: 24),
+
+            // TOMBOL SIMPAN (Tetep di atas karena ini fitur utama Edit)
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -234,6 +385,86 @@ class _EditIklanPageState extends State<EditIklanPage> {
                       ),
               ),
             ),
+
+            SizedBox(height: 16),
+            Divider(thickness: 1.5),
+            SizedBox(height: 16),
+
+            // LOGIKA DUA TOMBOL DI BAWAH
+            _isTerjual
+                // KALAU UDAH TERJUAL: Cuma nampilin tombol hapus full-width
+                ? SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: _isLoading ? null : _hapusIklan,
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      label: Text(
+                        "Hapus Iklan Ini",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  )
+                // KALAU BELUM TERJUAL: Tampil tombol terjual (kiri) dan hapus (kanan) sejajar
+                : Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _tandaiTerjual,
+                            icon: Icon(Icons.check_circle, color: Colors.green),
+                            label: Text(
+                              "Terjual",
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.green),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: _isLoading ? null : _hapusIklan,
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            label: Text(
+                              "Hapus",
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: Colors.red),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+            SizedBox(height: 30), // Padding bawah biar gak mentok
           ],
         ),
       ),

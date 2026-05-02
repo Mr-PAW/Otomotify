@@ -25,23 +25,34 @@ class MarketplacePage extends StatelessWidget {
         // Diurutin dari yang paling baru diupload
         stream: FirebaseFirestore.instance
             .collection('mobil')
-            .orderBy('createdAt', descending: true)
+            .where(
+              'terjual',
+              isEqualTo: false,
+            )
             .snapshots(),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting)
             return Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty)
             return Center(
               child: Text("Belum ada iklan mobil di marketplace ini."),
             );
-          }
+
+          var docs = snapshot.data!.docs;
+          docs.sort((a, b) {
+            Timestamp? timeA =
+                (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            Timestamp? timeB =
+                (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+            if (timeA == null || timeB == null) return 0;
+            return timeB.compareTo(timeA); // Descending (Terbaru di atas)
+          });
 
           return ListView.builder(
             padding: EdgeInsets.symmetric(vertical: 12),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              var mobil = snapshot.data!.docs[index];
+              var mobil = docs[index];
 
               return Card(
                 elevation: 2,

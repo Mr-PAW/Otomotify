@@ -22,24 +22,24 @@ class QuizData {
     ),
     Question(
       id: 2,
-      question: 'Merek mobil BMW berasal dari negara mana?',
-      options: ['Jepang', 'Jerman', 'Italia', 'Inggris'],
-      correctAnswer: 1,
-    ),
-    Question(
-      id: 3,
-      question: 'Apa kepanjangan dari "SUV"?',
-      options: [
-        'Sport Utility Vehicle',
-        'Super Urban Van',
-        'Speed Universal Vehicle',
-        'Standard Use Vehicle',
-      ],
+      question: 'Merek mobil Citroen berasal dari negara mana?',
+      options: ['Perancis', 'Jerman', 'Italia', 'Inggris'],
       correctAnswer: 0,
     ),
     Question(
+      id: 3,
+      question: 'Mana mobil dibawah ini yang menggunakan air cooling?',
+      options: [
+        'VW Tiguan',
+        'Honda Civic',
+        'Toyota Corolla',
+        'VW Beetle',
+      ],
+      correctAnswer: 3,
+    ),
+    Question(
       id: 4,
-      question: 'Toyota Supra generasi terbaru diluncurkan tahun berapa?',
+      question: 'Toyota Supra generasi terbaru (mk5) diluncurkan tahun berapa?',
       options: ['2015', '2018', '2019', '2021'],
       correctAnswer: 2,
     ),

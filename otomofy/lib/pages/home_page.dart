@@ -3,12 +3,7 @@ import 'login_page.dart';
 import 'jual_page.dart';
 import 'marketplace_page.dart';
 import 'quiz_page.dart';
-
-class FavoritPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) =>
-      Center(child: Text("Halaman Favorit", style: TextStyle(fontSize: 20)));
-}
+import 'favorit_page.dart';
 
 // =========================================================
 // 2. PLACEHOLDER UNTUK MENU BOTTOM NAV (BAWAH)
@@ -185,7 +180,10 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: Icon(Icons.favorite_border),
               title: Text('Favorit Saya'),
-              onTap: () => _onDrawerTapped(FavoritPage(), 'Mobil Favorit'),
+              onTap: () => _onDrawerTapped(
+                FavoritPage(userId: widget.idUser.toString()),
+                'Mobil Favorit',
+              ),
             ),
 
             // Menu Kuis Otomotif
