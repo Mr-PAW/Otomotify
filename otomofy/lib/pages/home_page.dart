@@ -5,21 +5,15 @@ import 'jual_page.dart';
 import 'marketplace_page.dart';
 import 'quiz_page.dart';
 import 'favorit_page.dart';
+import 'cari_bengkel_page.dart';
+import 'home_content_page.dart';
 import 'dart:async'; // WAJIB buat StreamSubscription
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // =========================================================
 // 2. PLACEHOLDER UNTUK MENU BOTTOM NAV (BAWAH)
 // =========================================================
-class HomeContent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Text(
-      "Halaman Home Utama (Semua ada di sini)",
-      style: TextStyle(fontSize: 20),
-    ),
-  );
-}
+// HomeContent has been replaced by HomeContentPage (see home_content_page.dart)
 
 class KesanPesanContent extends StatelessWidget {
   @override
@@ -50,7 +44,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // Variabel buat nyimpen UI mana yang lagi tampil
-  Widget _currentBody = HomeContent();
+  late Widget _currentBody;
   String _currentTitle = 'Beranda Otomotify';
 
   StreamSubscription<QuerySnapshot>? _notifSubscription;
@@ -60,6 +54,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _currentBody = _buildHomeContent();
     _mulaiDengerinNotifikasi();
   }
 
@@ -134,7 +129,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _bottomNavIndex = index; // Pindah warna tombol
       if (index == 0) {
-        _currentBody = HomeContent();
+        _currentBody = _buildHomeContent();
         _currentTitle = 'Beranda Otomotify';
       } else if (index == 1) {
         _currentBody = KesanPesanContent();
@@ -153,6 +148,20 @@ class _HomePageState extends State<HomePage> {
       _currentTitle = title;
     });
     Navigator.pop(context); // Tutup drawer otomatis
+  }
+
+  // Helper: constructs the Metro tile home screen with user context
+  Widget _buildHomeContent() {
+    return HomeContentPage(
+      idUser: widget.idUser,
+      namaUser: widget.namaUser,
+      onNavigate: (page, title) {
+        setState(() {
+          _currentBody = page;
+          _currentTitle = title;
+        });
+      },
+    );
   }
 
   void _doLogout() {
@@ -259,6 +268,16 @@ class _HomePageState extends State<HomePage> {
               onTap: () => _onDrawerTapped(
                 FavoritPage(userId: widget.idUser.toString()),
                 'Mobil Favorit',
+              ),
+            ),
+
+            // Menu Cari Bengkel
+            ListTile(
+              leading: Icon(Icons.build_circle_outlined),
+              title: Text('Cari Bengkel'),
+              onTap: () => _onDrawerTapped(
+                const CariBengkelPage(),
+                'Cari Bengkel',
               ),
             ),
 

@@ -47,6 +47,9 @@ dependencies:
   firebase_storage: ^11.6.5
   http: ^1.6.0
   cached_network_image: ^3.4.1
+  flutter_map: ^7.0.2        # OpenStreetMap widget
+  geolocator: ^13.0.2        # GPS / device location
+  latlong2: ^0.9.1           # LatLng coordinate type for flutter_map
 
 dev_dependencies:
   flutter_test:
