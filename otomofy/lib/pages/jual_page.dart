@@ -203,7 +203,6 @@ class _JualPageState extends State<JualPage> {
             // Bikin Card-nya bisa dipencet (InkWell) buat masuk halaman Edit
             return InkWell(
               onTap: () {
-                // Pindah ke Halaman Edit, bawa data mobil ini
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -258,20 +257,41 @@ class _JualPageState extends State<JualPage> {
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment
+                                .start, // Biar icon tetep di atas kalo teksnya 2 baris
                             children: [
-                              Text(
-                                "${mobil['merek']} ${mobil['nama']} (${mobil['tahun']})",
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              // Pake Expanded biar teks nggak nabrak layar (Bebas dari garis kuning-hitam)
+                              Expanded(
+                                child: Text(
+                                  "${mobil['merek']} ${mobil['nama']}", // Tahunnya dicopot dari sini
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines:
+                                      2, // Kalo nama mobil kepanjangan, maksimal 2 baris
+                                  overflow: TextOverflow
+                                      .ellipsis, // Sisanya jadi titik-titik
                                 ),
                               ),
+                              SizedBox(
+                                width: 8,
+                              ), // Jarak aman antara teks dan icon
                               Icon(
                                 Icons.edit,
                                 color: Colors.grey,
                                 size: 20,
                               ), // Icon nandain bisa diedit
                             ],
+                          ),
+                          SizedBox(height: 4),
+                          // TAHUN SEKARANG ADA DI BAWAH SINI
+                          Text(
+                            "Tahun: ${mobil['tahun']}",
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
                           ),
                           SizedBox(height: 8),
                           // REQ 4: Harga diformat pake koma/titik
@@ -283,7 +303,6 @@ class _JualPageState extends State<JualPage> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          // REQ 6: Deskripsi diumpetin dari Card, makanya teks deskripsinya gua hapus di sini
                         ],
                       ),
                     ),

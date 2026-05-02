@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,7 +15,7 @@ class MarketplacePage extends StatefulWidget {
 }
 
 class _MarketplacePageState extends State<MarketplacePage> {
-  // Variabel State buat nyimpen inputan user
+  // Variabel Search & Filter
   String _searchQuery = "";
   int? _minTahun;
   int? _maxTahun;
@@ -22,6 +24,36 @@ class _MarketplacePageState extends State<MarketplacePage> {
   final TextEditingController _minTahunController = TextEditingController();
   final TextEditingController _maxTahunController = TextEditingController();
 
+  // Variabel API Mata Uang
+  String _selectedCurrency = 'idr';
+  Map<String, dynamic> _exchangeRates = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExchangeRates(); // Tarik data kurs pas halaman dibuka
+  }
+
+  // --- FUNGSI TEMBAK API KURS ---
+  Future<void> _fetchExchangeRates() async {
+    // Ngambil kurs terbaru dengan patokan Rupiah (idr)
+    final url = Uri.parse(
+      'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/idr.min.json',
+    );
+    try {
+      var response = await http.get(url);
+      if (response.statusCode == 200) {
+        var data = json.decode(response.body);
+        setState(() {
+          _exchangeRates = data['idr']; // Nyimpen semua kurs dunia
+        });
+      }
+    } catch (e) {
+      print("Gagal load API kurs Fawaz Ahmed: $e");
+    }
+  }
+
+  // --- FUNGSI FORMAT RUPIAH DASAR ---
   String formatRupiah(int number) {
     return number.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -29,9 +61,66 @@ class _MarketplacePageState extends State<MarketplacePage> {
     );
   }
 
+  // --- FUNGSI KONVERSI & FORMAT HARGA DINAMIS ---
+  String formatHargaDinamis(int hargaIdr) {
+    if (_selectedCurrency == 'idr' || _exchangeRates.isEmpty) {
+      return "Rp ${formatRupiah(hargaIdr)}";
+    }
+
+    // Ambil nilai rate dari API, kalau gak ada kasih 0
+    double rate = (_exchangeRates[_selectedCurrency] ?? 0).toDouble();
+    double converted = hargaIdr * rate;
+
+    // Setting Simbol
+    String symbol = "";
+    switch (_selectedCurrency) {
+      case 'usd':
+        symbol = "\$";
+        break;
+      case 'eur':
+        symbol = "€";
+        break;
+      case 'jpy':
+        symbol = "¥";
+        break;
+      case 'gbp':
+        symbol = "£";
+        break;
+      case 'cny':
+        symbol = "CN¥";
+        break; // Chinese Yuan
+      case 'myr':
+        symbol = "RM";
+        break; // Ringgit Malaysia
+      case 'sgd':
+        symbol = "S\$";
+        break; // Dollar Singapore
+      case 'thb':
+        symbol = "฿";
+        break; // Baht Thailand
+      case 'aud':
+        symbol = "A\$";
+        break; // Dollar Australia
+      case 'php':
+        symbol = "₱";
+        break; // Peso Filipina
+      default:
+        symbol = _selectedCurrency.toUpperCase();
+    }
+
+    // Pecah angka biar bisa dikasih koma ribuan (contoh: $ 18,500.00)
+    String numStr = converted.toStringAsFixed(2);
+    List<String> parts = numStr.split('.');
+    String formattedInt = parts[0].replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+
+    return "$symbol $formattedInt.${parts[1]}";
+  }
+
   // --- FUNGSI MUNCULIN DIALOG FILTER TAHUN ---
   void _showFilterDialog() {
-    // Isi textfield sama filter yang lagi aktif (kalo ada)
     _minTahunController.text = _minTahun?.toString() ?? "";
     _maxTahunController.text = _maxTahun?.toString() ?? "";
 
@@ -73,7 +162,6 @@ class _MarketplacePageState extends State<MarketplacePage> {
             ],
           ),
           actions: [
-            // Tombol Reset Filter
             TextButton(
               onPressed: () {
                 setState(() {
@@ -84,13 +172,11 @@ class _MarketplacePageState extends State<MarketplacePage> {
               },
               child: Text("Reset", style: TextStyle(color: Colors.red)),
             ),
-            // Tombol Terapkan Filter
             ElevatedButton(
               onPressed: () {
                 int? parsedMin = int.tryParse(_minTahunController.text);
                 int? parsedMax = int.tryParse(_maxTahunController.text);
 
-                // ERROR HANDLING: Rentang 1950 - 2026
                 if (parsedMin != null &&
                     (parsedMin < 1950 || parsedMin > 2026)) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -146,7 +232,7 @@ class _MarketplacePageState extends State<MarketplacePage> {
       body: Column(
         children: [
           // ==========================================
-          // BAGIAN ATAS: SEARCH BAR & TOMBOL FILTER
+          // BAGIAN ATAS: SEARCH BAR, KURS, & FILTER
           // ==========================================
           Container(
             padding: EdgeInsets.all(16),
@@ -156,17 +242,16 @@ class _MarketplacePageState extends State<MarketplacePage> {
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    maxLength: 40, // ERROR HANDLING: Maks 40 Karakter
+                    maxLength: 40,
                     onChanged: (value) {
                       setState(() {
-                        _searchQuery = value
-                            .toLowerCase(); // Dibikin huruf kecil semua biar pencariannya gak case-sensitive
+                        _searchQuery = value.toLowerCase();
                       });
                     },
                     decoration: InputDecoration(
-                      hintText: "Cari merek atau nama mobil...",
+                      hintText: "Cari merek atau nama...",
                       prefixIcon: Icon(Icons.search),
-                      counterText: "", // Ngumpetin angka 0/40 biar rapi
+                      counterText: "",
                       contentPadding: EdgeInsets.symmetric(vertical: 0),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -177,8 +262,63 @@ class _MarketplacePageState extends State<MarketplacePage> {
                     ),
                   ),
                 ),
-                SizedBox(width: 12),
-                // Tombol Filter (Bakal berubah warna kalo ada filter yg aktif)
+                SizedBox(width: 8),
+
+                // DROPDOWN MATA UANG API
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedCurrency,
+                      icon: Icon(
+                        Icons.monetization_on,
+                        color: Color(0xFF1E3C72),
+                        size: 18,
+                      ),
+                      style: TextStyle(
+                        color: Color(0xFF1E3C72),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                      items: [
+                        DropdownMenuItem(value: 'idr', child: Text(" IDR")),
+                        DropdownMenuItem(value: 'usd', child: Text(" USD")),
+                        DropdownMenuItem(value: 'eur', child: Text(" EUR")),
+                        DropdownMenuItem(value: 'jpy', child: Text(" JPY")),
+                        DropdownMenuItem(value: 'gbp', child: Text(" GBP")),
+                        DropdownMenuItem(value: 'cny', child: Text(" CNY")),
+                        DropdownMenuItem(value: 'myr', child: Text(" MYR")),
+                        DropdownMenuItem(value: 'sgd', child: Text(" SGD")),
+                        DropdownMenuItem(value: 'thb', child: Text(" THB")),
+                        DropdownMenuItem(value: 'aud', child: Text(" AUD")),
+                        DropdownMenuItem(value: 'php', child: Text(" PHP")),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          if (_exchangeRates.isEmpty && val != 'idr') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "Sedang mengambil data kurs dunia, tunggu 1-2 detik lagi ya!",
+                                ),
+                              ),
+                            );
+                          } else {
+                            setState(() => _selectedCurrency = val);
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+
+                // TOMBOL FILTER TAHUN
                 Container(
                   decoration: BoxDecoration(
                     color: (_minTahun != null || _maxTahun != null)
@@ -201,16 +341,13 @@ class _MarketplacePageState extends State<MarketplacePage> {
           ),
 
           // ==========================================
-          // BAGIAN BAWAH: LIST MARKETPLACE (UDAH DI-FILTER)
+          // BAGIAN BAWAH: LIST MARKETPLACE
           // ==========================================
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('mobil')
-                  .where(
-                    'terjual',
-                    isEqualTo: false,
-                  ) // Tarik semua yang belum laku
+                  .where('terjual', isEqualTo: false)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting)
@@ -220,30 +357,35 @@ class _MarketplacePageState extends State<MarketplacePage> {
                     child: Text("Belum ada iklan mobil di marketplace ini."),
                   );
 
-                // PROSES FILTERING LOKAL DI HP
+                // FILTERING & SEARCHING KODE KEMARIN (Udah Anti-Spasi)
                 var rawDocs = snapshot.data!.docs;
                 var filteredDocs = rawDocs.where((doc) {
                   var data = doc.data() as Map<String, dynamic>;
 
-                  // 1. Logika Searching (Gabung merek + nama)
                   String merek = (data['merek'] ?? '').toString().toLowerCase();
                   String nama = (data['nama'] ?? '').toString().toLowerCase();
-                  String gabunganNama = "$merek $nama";
+                  String gabunganNamaTanpaSpasi = "$merek$nama".replaceAll(
+                    RegExp(r'\s+'),
+                    '',
+                  );
+                  String queryTanpaSpasi = _searchQuery.replaceAll(
+                    RegExp(r'\s+'),
+                    '',
+                  );
 
-                  bool matchSearch = gabunganNama.contains(_searchQuery);
+                  bool matchSearch = gabunganNamaTanpaSpasi.contains(
+                    queryTanpaSpasi,
+                  );
 
-                  // 2. Logika Filter Tahun
                   int tahunMobil = data['tahun'] ?? 0;
                   bool matchMinTahun =
                       _minTahun == null || tahunMobil >= _minTahun!;
                   bool matchMaxTahun =
                       _maxTahun == null || tahunMobil <= _maxTahun!;
 
-                  // Mobil ini lolos seleksi kalo menuhi semua syarat
                   return matchSearch && matchMinTahun && matchMaxTahun;
                 }).toList();
 
-                // Kalo hasil filter kosong
                 if (filteredDocs.isEmpty) {
                   return Center(
                     child: Column(
@@ -260,7 +402,7 @@ class _MarketplacePageState extends State<MarketplacePage> {
                   );
                 }
 
-                // Proses Sorting Waktu (Terbaru di atas)
+                // SORTING TERBARU
                 filteredDocs.sort((a, b) {
                   Timestamp? timeA =
                       (a.data() as Map<String, dynamic>)['createdAt']
@@ -354,8 +496,9 @@ class _MarketplacePageState extends State<MarketplacePage> {
                                       ),
                                     ),
                                     SizedBox(height: 16),
+                                    // PANGGIL FUNGSI DINAMIS DI SINI!
                                     Text(
-                                      "Rp ${formatRupiah(mobil['harga'])}",
+                                      formatHargaDinamis(mobil['harga']),
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,
