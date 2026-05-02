@@ -4,6 +4,8 @@ import 'jual_page.dart';
 import 'marketplace_page.dart';
 import 'quiz_page.dart';
 import 'favorit_page.dart';
+import 'dart:async'; // WAJIB buat StreamSubscription
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // =========================================================
 // 2. PLACEHOLDER UNTUK MENU BOTTOM NAV (BAWAH)
@@ -49,6 +51,79 @@ class _HomePageState extends State<HomePage> {
   // Variabel buat nyimpen UI mana yang lagi tampil
   Widget _currentBody = HomeContent();
   String _currentTitle = 'Beranda Otomotify';
+
+  StreamSubscription<QuerySnapshot>? _notifSubscription;
+  bool _isInitialLoad =
+      true; // Trik biar pas baru buka app gak langsung dispam pop-up
+
+  @override
+  void initState() {
+    super.initState();
+    _mulaiDengerinNotifikasi();
+  }
+
+  void _mulaiDengerinNotifikasi() {
+    _notifSubscription = FirebaseFirestore.instance
+        .collection('notifikasi')
+        .where('id_user', isEqualTo: widget.idUser.toString())
+        .snapshots()
+        .listen((snapshot) {
+          // Kalo ini pertama kali app ngeload data, lewatin aja biar gak spam
+          if (_isInitialLoad) {
+            _isInitialLoad = false;
+            return;
+          }
+
+          // Ngecek apakah ada dokumen BARU yang masuk
+          for (var change in snapshot.docChanges) {
+            if (change.type == DocumentChangeType.added) {
+              var data = change.doc.data() as Map<String, dynamic>;
+
+              // Munculin Pop-Up Melayang (Floating SnackBar)
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.notifications_active, color: Colors.white),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          data['pesan'] ?? 'Ada notifikasi baru!',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.orange[800], // Warna oren khas notif
+                  behavior: SnackBarBehavior
+                      .floating, // Biar ngambang kayak pop-up beneran
+                  margin: EdgeInsets.only(bottom: 20, left: 16, right: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  duration: Duration(
+                    seconds: 4,
+                  ), // Ilang sendiri setelah 4 detik
+                  action: SnackBarAction(
+                    label: 'TUTUP',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    },
+                  ),
+                ),
+              );
+            }
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    // Matiin CCTV kalo user logout atau keluar aplikasi biar gak bocor memori
+    _notifSubscription?.cancel();
+    super.dispose();
+  }
 
   // Cuma buat ngontrol warna biru di tombol navbar bawah
   int _bottomNavIndex = 0;
