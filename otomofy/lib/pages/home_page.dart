@@ -1,18 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
-import 'jual_page.dart'; // Import file JualPage lu yang asli
-
-// =========================================================
-// 1. PLACEHOLDER UNTUK MENU DRAWER (SAMPING)
-// =========================================================
-class MarketplacePage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Text("Halaman Beli / Marketplace", style: TextStyle(fontSize: 20)),
-  );
-}
-
-// NOTE: Placeholder class JualPage udah gua HAPUS karena udah import dari atas.
+import 'jual_page.dart';
+import 'marketplace_page.dart';
 
 class FavoritPage extends StatelessWidget {
   @override
@@ -175,14 +164,16 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: Icon(Icons.storefront),
               title: Text('Marketplace (Beli)'),
-              onTap: () => _onDrawerTapped(MarketplacePage(), 'Bursa Mobil'),
+              onTap: () => _onDrawerTapped(
+                MarketplacePage(userId: widget.idUser.toString()),
+                'Bursa Mobil',
+              ),
             ),
 
             // Menu Jual Mobil
             ListTile(
               leading: Icon(Icons.add_circle_outline),
               title: Text('Jual Mobil'),
-              // Lempar widget.idUser.toString() ke JualPage yang bener
               onTap: () => _onDrawerTapped(
                 JualPage(userId: widget.idUser.toString()),
                 'Jual Mobil',
