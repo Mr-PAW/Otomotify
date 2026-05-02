@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:otomofy/pages/start_game_screen.dart';
 import 'login_page.dart';
 import 'jual_page.dart';
 import 'marketplace_page.dart';
@@ -261,6 +262,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
+            Divider(),
+            
             // Menu Kuis Otomotif
             ListTile(
               leading: Icon(Icons.quiz_outlined),
@@ -270,6 +273,18 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const QuizScreen()),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: Icon(Icons.quiz_outlined),
+              title: Text('Car Maze Mini Game'),
+              onTap: () {
+                Navigator.pop(context); // Tutup drawer dulu
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
                 );
               },
             ),
