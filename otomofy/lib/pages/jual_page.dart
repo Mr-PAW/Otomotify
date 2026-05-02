@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async'; // 🔥 TAMBAHAN: buat TimeoutException
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -26,7 +27,6 @@ class _JualPageState extends State<JualPage> {
   File? _imageFile;
   bool _isLoading = false;
 
-  // Fungsi format Rupiah (Biar ada titiknya, misal: 150.000.000)
   String formatRupiah(int number) {
     return number.toString().replaceAllMapped(
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
@@ -34,10 +34,57 @@ class _JualPageState extends State<JualPage> {
     );
   }
 
-  // REQ 1: Buka Galeri & Cek Ukuran Maksimal 500KB
+  // 🔥 TAMBAHAN: Fungsi cek gambar ke ML API
+  Future<bool> _checkIfCar(File imageFile) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://upload-reheat-skeptic.ngrok-free.dev/predict'),
+      );
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', imageFile.path),
+      );
+
+      var response = await request.send().timeout(Duration(seconds: 10));
+      var responseBody = await response.stream.bytesToString();
+      var result = jsonDecode(responseBody);
+
+      if (result['is_car'] == false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ Sepertinya bukan foto mobil, coba foto lain!"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false; // Batalin, bukan mobil
+      }
+
+      return true; // Lolos, ini mobil
+    } on TimeoutException {
+      // API timeout → tetep allow upload
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("⚠️ AI Scanner offline, foto tidak diverifikasi"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return true;
+    } catch (e) {
+      // API error/mati → tetep allow upload
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("⚠️ AI Scanner offline, foto tidak diverifikasi"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return true;
+    }
+  }
+
+  // 🔥 MODIFIKASI: _pickImage sekarang manggil _checkIfCar dulu
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    // Pake imageQuality biar ukurannya ke-compress otomatis sama Flutter
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 50,
@@ -48,7 +95,7 @@ class _JualPageState extends State<JualPage> {
       int sizeInBytes = tempFile.lengthSync();
       double sizeInKb = sizeInBytes / 1024;
 
-      // Cek kalau lebih dari 500 KB
+      // Cek ukuran dulu (kode lo yang existing, nggak diubah)
       if (sizeInKb > 500) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -58,8 +105,12 @@ class _JualPageState extends State<JualPage> {
             backgroundColor: Colors.red,
           ),
         );
-        return; // Batalin milih gambar
+        return;
       }
+
+      // 🔥 TAMBAHAN: Cek ke ML API dulu sebelum setState
+      bool canUpload = await _checkIfCar(tempFile);
+      if (!canUpload) return; // Batalin kalau bukan mobil
 
       setState(() {
         _imageFile = tempFile;
@@ -67,6 +118,7 @@ class _JualPageState extends State<JualPage> {
     }
   }
 
+  // Fungsi submit ini TIDAK DIUBAH sama sekali
   void _submitIklan() async {
     int? tahun = int.tryParse(_tahunController.text);
     if (tahun == null || tahun < 1950 || tahun > 2026) {
@@ -95,7 +147,6 @@ class _JualPageState extends State<JualPage> {
     setState(() => _isLoading = true);
 
     try {
-      // 1. Upload ke Cloudinary
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://api.cloudinary.com/v1_1/dbqlvsfmc/image/upload'),
@@ -110,17 +161,12 @@ class _JualPageState extends State<JualPage> {
         await streamedResponse.stream.bytesToString(),
       );
 
-      print("=== CLOUDINARY RESPONSE ===");
-      print(jsonResponse);
-      print("===========================");
-
       if (streamedResponse.statusCode != 200) {
         throw "Gagal upload gambar: ${jsonResponse['error']['message']}";
       }
 
-      String downloadUrl = jsonResponse['secure_url']; // HTTPS, aman & stabil
+      String downloadUrl = jsonResponse['secure_url'];
 
-      // 2. Insert ke Firestore
       await FirebaseFirestore.instance.collection('mobil').add({
         'merek': _merekController.text,
         'nama': _namaController.text,
@@ -155,6 +201,7 @@ class _JualPageState extends State<JualPage> {
     }
   }
 
+  // Semua widget build di bawah ini TIDAK DIUBAH sama sekali
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -181,7 +228,6 @@ class _JualPageState extends State<JualPage> {
     );
   }
 
-  // --- TAB 1: IKLAN SAYA ---
   Widget _buildIklanSayaTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -200,7 +246,6 @@ class _JualPageState extends State<JualPage> {
           itemBuilder: (context, index) {
             var mobil = snapshot.data!.docs[index];
 
-            // Bikin Card-nya bisa dipencet (InkWell) buat masuk halaman Edit
             return InkWell(
               onTap: () {
                 Navigator.push(
@@ -257,35 +302,24 @@ class _JualPageState extends State<JualPage> {
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment
-                                .start, // Biar icon tetep di atas kalo teksnya 2 baris
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Pake Expanded biar teks nggak nabrak layar (Bebas dari garis kuning-hitam)
                               Expanded(
                                 child: Text(
-                                  "${mobil['merek']} ${mobil['nama']}", // Tahunnya dicopot dari sini
+                                  "${mobil['merek']} ${mobil['nama']}",
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
                                   ),
-                                  maxLines:
-                                      2, // Kalo nama mobil kepanjangan, maksimal 2 baris
-                                  overflow: TextOverflow
-                                      .ellipsis, // Sisanya jadi titik-titik
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              SizedBox(
-                                width: 8,
-                              ), // Jarak aman antara teks dan icon
-                              Icon(
-                                Icons.edit,
-                                color: Colors.grey,
-                                size: 20,
-                              ), // Icon nandain bisa diedit
+                              SizedBox(width: 8),
+                              Icon(Icons.edit, color: Colors.grey, size: 20),
                             ],
                           ),
                           SizedBox(height: 4),
-                          // TAHUN SEKARANG ADA DI BAWAH SINI
                           Text(
                             "Tahun: ${mobil['tahun']}",
                             style: TextStyle(
@@ -294,7 +328,6 @@ class _JualPageState extends State<JualPage> {
                             ),
                           ),
                           SizedBox(height: 8),
-                          // REQ 4: Harga diformat pake koma/titik
                           Text(
                             "Rp ${formatRupiah(mobil['harga'])}",
                             style: TextStyle(
@@ -316,7 +349,6 @@ class _JualPageState extends State<JualPage> {
     );
   }
 
-  // --- TAB 2: FORM TAMBAH IKLAN ---
   Widget _buildTambahIklanTab() {
     return SingleChildScrollView(
       padding: EdgeInsets.all(16),
@@ -352,22 +384,18 @@ class _JualPageState extends State<JualPage> {
             ),
           ),
           SizedBox(height: 20),
-
-          // REQ 2: Merek maks 15 karakter
           _buildTextField(
             "Merek Mobil",
             _merekController,
             Icons.branding_watermark,
             maxLength: 15,
           ),
-          // REQ 2: Nama maks 25 karakter
           _buildTextField(
             "Nama Mobil",
             _namaController,
             Icons.directions_car,
             maxLength: 25,
           ),
-          // Tahun udah divalidasi 1950 - 2026 di fungsi submit
           _buildTextField(
             "Tahun",
             _tahunController,
@@ -381,8 +409,6 @@ class _JualPageState extends State<JualPage> {
             Icons.monetization_on,
             isNumber: true,
           ),
-
-          // REQ 5: Deskripsi maks 100 karakter (Otomatis ada counter di pojok kanan bawahnya)
           TextField(
             controller: _deskripsiController,
             maxLines: 3,
@@ -444,8 +470,7 @@ class _JualPageState extends State<JualPage> {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           filled: true,
           fillColor: Colors.grey[100],
-          counterText:
-              "", // Kalo gak mau munculin angka karakter buat field biasa
+          counterText: "",
         ),
       ),
     );
