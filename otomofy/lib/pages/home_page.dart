@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'jual_page.dart';
 import 'marketplace_page.dart';
+import 'quiz_page.dart';
 
 class FavoritPage extends StatelessWidget {
   @override
@@ -185,6 +186,19 @@ class _HomePageState extends State<HomePage> {
               leading: Icon(Icons.favorite_border),
               title: Text('Favorit Saya'),
               onTap: () => _onDrawerTapped(FavoritPage(), 'Mobil Favorit'),
+            ),
+
+            // Menu Kuis Otomotif
+            ListTile(
+              leading: Icon(Icons.quiz_outlined),
+              title: Text('Kuis Otomotif'),
+              onTap: () {
+                Navigator.pop(context); // Tutup drawer dulu
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const QuizScreen()),
+                );
+              },
             ),
 
             Divider(),
