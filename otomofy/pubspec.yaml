@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.11.1
+  sdk: ^3.9.1
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -34,6 +34,7 @@ dependencies:
   firebase_core: ^2.32.0       
   cloud_firestore: ^4.17.5
   local_auth: ^2.3.0
+  shared_preferences: ^2.2.0  # Local storage for user preferences
   sensors_plus: ^4.0.2       # Accelerometer/tilt sensor
   sqflite: ^2.3.3            # SQLite database
   path: ^1.9.0               # Path utilities

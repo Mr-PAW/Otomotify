@@ -7,6 +7,7 @@ import 'quiz_page.dart';
 import 'favorit_page.dart';
 import 'cari_bengkel_page.dart';
 import 'home_content_page.dart';
+import 'biometric_settings_page.dart';
 import 'dart:async'; // WAJIB buat StreamSubscription
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -304,6 +305,25 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
+              },
+            ),
+
+            Divider(),
+
+            ListTile(
+              leading: Icon(Icons.fingerprint),
+              title: Text('Daftar Sidik Jari'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BiometricSettingsPage(
+                      idUser: widget.idUser.toString(),
+                      namaUser: widget.namaUser,
+                    ),
+                  ),
                 );
               },
             ),

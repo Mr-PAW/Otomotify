@@ -143,9 +143,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final topPad = MediaQuery.of(context).padding.top;
-
     return Scaffold(
       backgroundColor: const Color(0xFF0D001A),
       body: AnimatedBuilder(
