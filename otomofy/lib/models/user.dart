@@ -29,4 +29,18 @@ List<User> dummyUsers = [
     password:
         '52c9d53b73f8a8b61152ca671557a2c4dd8fe5a4425a5a4a47306e2aacc28fd5',
   ),
+  User(
+    id: 4,
+    nama: 'Raffy',
+    username: 'raffy',
+    password:
+        'bfccfeb7726160d74f8a18407853846aab2ebd57db1dc32409acd6aefc7c4b33',
+  ),
+  User(
+    id: 5,
+    nama: 'Ual imitasi',
+    username: 'ual',
+    password:
+        'ace4a5cc7a5a2923894f0d703b95a7649102ca86b7ef5013d50d05f107d660fc',
+  ),
 ];

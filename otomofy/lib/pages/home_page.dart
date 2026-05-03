@@ -10,18 +10,12 @@ import 'home_content_page.dart';
 import 'biometric_settings_page.dart';
 import 'dart:async'; // WAJIB buat StreamSubscription
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'kesan_pesan_page.dart';
 
 // =========================================================
 // 2. PLACEHOLDER UNTUK MENU BOTTOM NAV (BAWAH)
 // =========================================================
 // HomeContent has been replaced by HomeContentPage (see home_content_page.dart)
-
-class KesanPesanContent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Text("Halaman Kesan & Pesan Matkul", style: TextStyle(fontSize: 20)),
-  );
-}
 
 class ProfileContent extends StatelessWidget {
   @override
@@ -133,8 +127,11 @@ class _HomePageState extends State<HomePage> {
         _currentBody = _buildHomeContent();
         _currentTitle = 'Beranda Otomotify';
       } else if (index == 1) {
-        _currentBody = KesanPesanContent();
-        _currentTitle = 'Kesan & Pesan Matkul';
+        _currentBody = KesanPesanPage(
+          userId: widget.idUser.toString(),
+          userName: widget.namaUser,
+        );
+        _currentTitle = 'Kesan & Pesan';
       } else if (index == 2) {
         _currentBody = ProfileContent();
         _currentTitle = 'Profil Saya';
@@ -276,14 +273,12 @@ class _HomePageState extends State<HomePage> {
             ListTile(
               leading: Icon(Icons.build_circle_outlined),
               title: Text('Cari Bengkel'),
-              onTap: () => _onDrawerTapped(
-                const CariBengkelPage(),
-                'Cari Bengkel',
-              ),
+              onTap: () =>
+                  _onDrawerTapped(const CariBengkelPage(), 'Cari Bengkel'),
             ),
 
             Divider(),
-            
+
             // Menu Kuis Otomotif
             ListTile(
               leading: Icon(Icons.quiz_outlined),

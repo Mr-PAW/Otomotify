@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
 
 class EditIklanPage extends StatefulWidget {
   final DocumentSnapshot mobil;
@@ -42,6 +43,51 @@ class _EditIklanPageState extends State<EditIklanPage> {
     }
   }
 
+  Future<bool> _checkIfCar(File imageFile) async {
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://upload-reheat-skeptic.ngrok-free.dev/predict'),
+      );
+
+      request.files.add(
+        await http.MultipartFile.fromPath('file', imageFile.path),
+      );
+
+      var response = await request.send().timeout(Duration(seconds: 10));
+      var responseBody = await response.stream.bytesToString();
+      var result = jsonDecode(responseBody);
+
+      if (result['is_car'] == false) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ Sepertinya bukan foto mobil, coba foto lain!"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
+
+      return true;
+    } on TimeoutException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("⚠️ AI Scanner offline, foto tidak diverifikasi"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return true;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("⚠️ AI Scanner offline, foto tidak diverifikasi"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return true;
+    }
+  }
+
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
@@ -60,6 +106,11 @@ class _EditIklanPageState extends State<EditIklanPage> {
         );
         return;
       }
+
+      // 🔥 TAMBAHAN: Cek ke ML API dulu
+      bool canUpload = await _checkIfCar(tempFile);
+      if (!canUpload) return;
+
       setState(() => _imageFile = tempFile);
     }
   }

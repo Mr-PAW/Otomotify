@@ -385,6 +385,10 @@ class _HomeContentPageState extends State<HomeContentPage>
 
   // ---- Small tile ----------------------------------------------------------
   Widget _buildSmallTile(_TileData tile, int index) {
+    // The label strip at the bottom is ~28px tall; we reserve that space
+    // so the content column never bleeds into it.
+    const double _stripHeight = 28.0;
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressedIndex = index),
       onTapUp: (_) {
@@ -396,7 +400,7 @@ class _HomeContentPageState extends State<HomeContentPage>
         scale: _pressedIndex == index ? 0.94 : 1.0,
         duration: const Duration(milliseconds: 110),
         child: Container(
-          height: 168,
+          height: 180,
           decoration: BoxDecoration(
             gradient: tile.gradient,
             borderRadius: BorderRadius.circular(6),
@@ -410,53 +414,27 @@ class _HomeContentPageState extends State<HomeContentPage>
           ),
           child: Stack(
             children: [
-              // Watermark icon
+              // Watermark icon – shift up so it doesn't overlap the strip
               Positioned(
-                right: -10,
-                bottom: -10,
+                right: -8,
+                bottom: _stripHeight,
                 child: Icon(
                   tile.icon,
-                  size: 85,
+                  size: 80,
                   color: Colors.white.withOpacity(0.07),
                 ),
               ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(tile.icon, color: Colors.white, size: 24),
-                    const Spacer(),
-                    Text(
-                      tile.tagline,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      tile.subtext,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.82),
-                        fontSize: 10.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Bottom label strip
+              // Bottom label strip (rendered first so content sits above it)
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  height: _stripHeight,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  alignment: Alignment.centerLeft,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.18),
+                    color: Colors.black.withOpacity(0.22),
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(6),
                       bottomRight: Radius.circular(6),
@@ -470,7 +448,40 @@ class _HomeContentPageState extends State<HomeContentPage>
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
+                ),
+              ),
+              // Content – padded so it never touches the strip
+              Padding(
+                padding: EdgeInsets.fromLTRB(14, 14, 14, _stripHeight + 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(tile.icon, color: Colors.white, size: 24),
+                    const Spacer(),
+                    Text(
+                      tile.tagline,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        height: 1.2,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      tile.subtext,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.82),
+                        fontSize: 10,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
                 ),
               ),
             ],
