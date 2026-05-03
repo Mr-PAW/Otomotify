@@ -5,6 +5,8 @@ import 'jual_page.dart';
 import 'favorit_page.dart';
 import 'cari_bengkel_page.dart';
 import 'quiz_page.dart';
+import 'qibla_page.dart';
+import 'time_page.dart';
 
 // =========================================================
 // Metro Tile Home Content
@@ -149,6 +151,44 @@ class _HomeContentPageState extends State<HomeContentPage>
           );
         },
       ),
+      // 6 – Kompas Kiblat (WIDE)
+      _TileData(
+        isWide: true,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F2027), Color(0xFF2C5364)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.explore_rounded,
+        label: 'KOMPAS KIBLAT',
+        tagline: 'Arah Kiblat\nPresisi',
+        subtext: '🕋  Tentukan arah sholatmu',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const QiblaPage()),
+          );
+        },
+      ),
+      // 7 – Konversi Waktu (WIDE)
+      _TileData(
+        isWide: true,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF000000), Color(0xFF434343)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.access_time_filled_rounded,
+        label: 'WAKTU DUNIA',
+        tagline: 'Konversi\nWaktu Global',
+        subtext: '⏰  WIB · WITA · WIT · London',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const TimePage()),
+          );
+        },
+      ),
     ];
 
     // Build staggered entrance animations
@@ -221,6 +261,10 @@ class _HomeContentPageState extends State<HomeContentPage>
                     Expanded(child: _animatedTile(_buildSmallTile(_tiles[5], 5), 5)),
                   ],
                 ),
+                const SizedBox(height: 10),
+                _animatedTile(_buildWideTile(_tiles[6], 6), 6),
+                const SizedBox(height: 10),
+                _animatedTile(_buildWideTile(_tiles[7], 7), 7),
               ],
             ),
           ),

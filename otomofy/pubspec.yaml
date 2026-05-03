@@ -39,6 +39,8 @@ dependencies:
   sqflite: ^2.3.3            # SQLite database
   path: ^1.9.0               # Path utilities
   path_provider: ^2.1.2      # App directories
+  flutter_compass: ^0.8.0    # Compass for Qibla
+  intl: ^0.19.0              # Date/Time formatting
   google_fonts: ^6.2.1       # Font Orbitron & Rajdhani
 
   # The following adds the Cupertino Icons font to your application.
@@ -46,11 +48,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   image_picker: ^1.2.2
   firebase_storage: ^11.6.5
-  http: ^1.6.0
   cached_network_image: ^3.4.1
   flutter_map: ^7.0.2        # OpenStreetMap widget
   geolocator: ^13.0.2        # GPS / device location
   latlong2: ^0.9.1           # LatLng coordinate type for flutter_map
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

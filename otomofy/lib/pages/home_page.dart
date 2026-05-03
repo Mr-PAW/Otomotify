@@ -11,7 +11,9 @@ import 'biometric_settings_page.dart';
 import 'dart:async'; // WAJIB buat StreamSubscription
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'kesan_pesan_page.dart';
-
+import 'profile_page.dart';
+import 'qibla_page.dart';
+import 'time_page.dart';
 // =========================================================
 // 2. PLACEHOLDER UNTUK MENU BOTTOM NAV (BAWAH)
 // =========================================================
@@ -133,7 +135,8 @@ class _HomePageState extends State<HomePage> {
         );
         _currentTitle = 'Kesan & Pesan';
       } else if (index == 2) {
-        _currentBody = ProfileContent();
+        _currentBody =
+            ProfilePage(userId: widget.idUser.toString(), userName: widget.namaUser);
         _currentTitle = 'Profil Saya';
       }
     });
@@ -300,6 +303,30 @@ class _HomePageState extends State<HomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: Icon(Icons.explore),
+              title: Text('Kompas Kiblat'),
+              onTap: () {
+                Navigator.pop(context); // Tutup drawer dulu
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const QiblaPage()),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: Icon(Icons.access_time),
+              title: Text('Konversi Waktu'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const TimePage()),
                 );
               },
             ),
