@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import '../services/biometric_service.dart';
 import '../services/biometric_preferences.dart';
+import '../services/auth_service.dart';
 
 class BiometricSettingsPage extends StatefulWidget {
   final String idUser;
@@ -62,7 +63,13 @@ class _BiometricSettingsPageState extends State<BiometricSettingsPage> {
             );
 
         if (isAuthenticated) {
-          await BiometricPreferences.enableBiometric(widget.idUser);
+          // Fetch the current refresh token to store with biometric enrollment
+          final refreshToken = await AuthService.getRefreshToken();
+          await BiometricPreferences.enableBiometric(
+            widget.idUser,
+            userName: widget.namaUser,
+            refreshToken: refreshToken,
+          );
           setState(() {
             _isBiometricEnabled = true;
           });

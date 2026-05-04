@@ -53,6 +53,9 @@ dependencies:
   geolocator: ^13.0.2        # GPS / device location
   latlong2: ^0.9.1           # LatLng coordinate type for flutter_map
   permission_handler: ^11.3.1
+  http: ^1.2.0
+  flutter_secure_storage: ^9.0.0
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:

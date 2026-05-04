@@ -14,6 +14,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Required by flutter_local_notifications v21 (uses java.time.* APIs)
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -44,4 +46,17 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Required for core library desugaring (flutter_local_notifications v21 needs >= 2.1.4)
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+}
+
+// Force desugar_jdk_libs to 2.1.4 — the Flutter Gradle Plugin pins it at 1.2.2
+// which is too old for flutter_local_notifications v21.
+configurations.all {
+    resolutionStrategy {
+        force("com.android.tools:desugar_jdk_libs:2.1.4")
+    }
 }

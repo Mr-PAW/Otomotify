@@ -1,5 +1,13 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:otomofy/pages/start_game_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import 'login_page.dart';
 import 'jual_page.dart';
 import 'marketplace_page.dart';
@@ -8,25 +16,16 @@ import 'favorit_page.dart';
 import 'cari_bengkel_page.dart';
 import 'home_content_page.dart';
 import 'biometric_settings_page.dart';
-import 'dart:async'; // WAJIB buat StreamSubscription
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'kesan_pesan_page.dart';
 import 'profile_page.dart';
 import 'qibla_page.dart';
 import 'time_page.dart';
-// =========================================================
-// 2. PLACEHOLDER UNTUK MENU BOTTOM NAV (BAWAH)
-// =========================================================
-// HomeContent has been replaced by HomeContentPage (see home_content_page.dart)
 
-class ProfileContent extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) =>
-      Center(child: Text("Halaman Profil", style: TextStyle(fontSize: 20)));
-}
+import '../services/auth_service.dart';
+import '../services/profile_service.dart';
 
 // =========================================================
-// 3. MAIN PAGE (Master Shell)
+// MAIN PAGE (Master Shell)
 // =========================================================
 class HomePage extends StatefulWidget {
   final int idUser;
@@ -40,19 +39,99 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Variabel buat nyimpen UI mana yang lagi tampil
   late Widget _currentBody;
   String _currentTitle = 'Beranda Otomotify';
+  int _bottomNavIndex = 0;
+
+  // ── Reactive drawer state ──────────────────────────────────────────────────
+  late String _namaUser;
+  String? _profilePicPath;
 
   StreamSubscription<QuerySnapshot>? _notifSubscription;
-  bool _isInitialLoad =
-      true; // Trik biar pas baru buka app gak langsung dispam pop-up
+  bool _isInitialLoad = true;
+
+  // ── SETUP LOCAL NOTIFICATION ───────────────────────────────────────────────
+  final FlutterLocalNotificationsPlugin _localNotifPlugin =
+      FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
+    _namaUser = widget.namaUser;
     _currentBody = _buildHomeContent();
-    _mulaiDengerinNotifikasi();
+    _loadProfilePic();
+
+    // Inisialisasi plugin notifikasi, lalu mulai dengarkan Firestore
+    _initLocalNotification().then((_) => _mulaiDengerinNotifikasi());
+  }
+
+  // FUNGSI: Nyalain mesin notifikasi HP
+  Future<void> _initLocalNotification() async {
+    // Icon bawaan app flutter biar gak crash
+    const AndroidInitializationSettings initSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: initSettingsAndroid,
+    );
+
+    // v21 API: named parameter 'settings'
+    await _localNotifPlugin.initialize(settings: initSettings);
+
+    // Android 13+ (API 33) wajib minta izin POST_NOTIFICATIONS secara runtime
+    if (Platform.isAndroid) {
+      final status = await Permission.notification.status;
+      if (!status.isGranted) {
+        await Permission.notification.request();
+      }
+    }
+  }
+
+  // FUNGSI: Nembak notif ke status bar HP
+  Future<void> _tampilNotifBanner(String pesan) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'channel_otomotify_01', // ID Channel
+          'Notifikasi Interaksi', // Nama Channel
+          channelDescription: 'Notifikasi dari Otomotify untuk interaksi iklan',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          color: Color(0xFF1E3C72),
+          icon: '@mipmap/ic_launcher',
+        );
+
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    // ID unik acak supaya notif tidak menimpa satu sama lain
+    // v21 API: named parameters
+    await _localNotifPlugin.show(
+      id: Random().nextInt(2147483647),
+      title: 'Otomotify',
+      body: pesan,
+      notificationDetails: platformDetails,
+    );
+  }
+
+  Future<void> _loadProfilePic() async {
+    final pic = await ProfileService.getProfilePicPath(
+      widget.idUser.toString(),
+    );
+    if (mounted && pic != null) {
+      setState(() => _profilePicPath = pic);
+    }
+  }
+
+  /// Called by ProfilePage whenever name or picture changes.
+  void _onProfileUpdated(String newName, String? newPicPath) {
+    setState(() {
+      _namaUser = newName;
+      if (newPicPath != null) _profilePicPath = newPicPath;
+    });
   }
 
   void _mulaiDengerinNotifikasi() {
@@ -61,51 +140,16 @@ class _HomePageState extends State<HomePage> {
         .where('id_user', isEqualTo: widget.idUser.toString())
         .snapshots()
         .listen((snapshot) {
-          // Kalo ini pertama kali app ngeload data, lewatin aja biar gak spam
           if (_isInitialLoad) {
             _isInitialLoad = false;
             return;
           }
-
-          // Ngecek apakah ada dokumen BARU yang masuk
           for (var change in snapshot.docChanges) {
             if (change.type == DocumentChangeType.added) {
-              var data = change.doc.data() as Map<String, dynamic>;
+              final data = change.doc.data() as Map<String, dynamic>;
 
-              // Munculin Pop-Up Melayang (Floating SnackBar)
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.notifications_active, color: Colors.white),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          data['pesan'] ?? 'Ada notifikasi baru!',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                  backgroundColor: Colors.orange[800], // Warna oren khas notif
-                  behavior: SnackBarBehavior
-                      .floating, // Biar ngambang kayak pop-up beneran
-                  margin: EdgeInsets.only(bottom: 20, left: 16, right: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  duration: Duration(
-                    seconds: 4,
-                  ), // Ilang sendiri setelah 4 detik
-                  action: SnackBarAction(
-                    label: 'TUTUP',
-                    textColor: Colors.white,
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    },
-                  ),
-                ),
-              );
+              // MUNCULIN BANNER NOTIFIKASI OFFLINE
+              _tampilNotifBanner(data['pesan'] ?? 'Ada notifikasi baru!');
             }
           }
         });
@@ -113,49 +157,16 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
-    // Matiin CCTV kalo user logout atau keluar aplikasi biar gak bocor memori
     _notifSubscription?.cancel();
     super.dispose();
   }
 
-  // Cuma buat ngontrol warna biru di tombol navbar bawah
-  int _bottomNavIndex = 0;
+  // ── Navigation helpers ─────────────────────────────────────────────────────
 
-  // Fungsi ganti halaman dari BOTTOM NAV
-  void _onBottomNavTapped(int index) {
-    setState(() {
-      _bottomNavIndex = index; // Pindah warna tombol
-      if (index == 0) {
-        _currentBody = _buildHomeContent();
-        _currentTitle = 'Beranda Otomotify';
-      } else if (index == 1) {
-        _currentBody = KesanPesanPage(
-          userId: widget.idUser.toString(),
-          userName: widget.namaUser,
-        );
-        _currentTitle = 'Kesan & Pesan';
-      } else if (index == 2) {
-        _currentBody =
-            ProfilePage(userId: widget.idUser.toString(), userName: widget.namaUser);
-        _currentTitle = 'Profil Saya';
-      }
-    });
-  }
-
-  // Fungsi ganti halaman dari DRAWER (Hamburger)
-  void _onDrawerTapped(Widget page, String title) {
-    setState(() {
-      _currentBody = page;
-      _currentTitle = title;
-    });
-    Navigator.pop(context); // Tutup drawer otomatis
-  }
-
-  // Helper: constructs the Metro tile home screen with user context
   Widget _buildHomeContent() {
     return HomeContentPage(
       idUser: widget.idUser,
-      namaUser: widget.namaUser,
+      namaUser: _namaUser,
       onNavigate: (page, title) {
         setState(() {
           _currentBody = page;
@@ -165,10 +176,47 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _doLogout() {
+  Widget _buildProfilePage() {
+    return ProfilePage(
+      userId: widget.idUser.toString(),
+      userName: _namaUser,
+      onProfileUpdated: _onProfileUpdated,
+    );
+  }
+
+  void _onBottomNavTapped(int index) {
+    setState(() {
+      _bottomNavIndex = index;
+      if (index == 0) {
+        _currentBody = _buildHomeContent();
+        _currentTitle = 'Beranda Otomotify';
+      } else if (index == 1) {
+        _currentBody = KesanPesanPage(
+          userId: widget.idUser.toString(),
+          userName: _namaUser,
+        );
+        _currentTitle = 'Kesan & Pesan';
+      } else if (index == 2) {
+        _currentBody = _buildProfilePage();
+        _currentTitle = 'Profil Saya';
+      }
+    });
+  }
+
+  void _onDrawerTapped(Widget page, String title) {
+    setState(() {
+      _currentBody = page;
+      _currentTitle = title;
+    });
+    Navigator.pop(context);
+  }
+
+  Future<void> _doLogout() async {
+    await AuthService.logout();
+    if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (context) => LoginPage()),
+      MaterialPageRoute(builder: (_) => const LoginPage()),
       (route) => false,
     );
   }
@@ -176,185 +224,214 @@ class _HomePageState extends State<HomePage> {
   void _showLogoutDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Konfirmasi Logout'),
+        content: const Text('Yakin mau keluar dari aplikasi Otomotify?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
-          title: Text("Konfirmasi Logout"),
-          content: Text("Yakin mau keluar dari aplikasi Otomotify?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text("Batal", style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _doLogout();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-              ),
-              child: Text("Keluar", style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _doLogout();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
+  // ── Drawer avatar helper ───────────────────────────────────────────────────
+  ImageProvider? get _drawerAvatar {
+    if (_profilePicPath != null && File(_profilePicPath!).existsSync()) {
+      return FileImage(File(_profilePicPath!));
+    }
+    return null;
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(_currentTitle),
-        backgroundColor: Color(0xFF1E3C72),
+        backgroundColor: const Color(0xFF1E3C72),
         foregroundColor: Colors.white,
       ),
 
-      // === DRAWER (MENU SAMPING) ===
+      // ── DRAWER ────────────────────────────────────────────────────────────
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
+            // ── Header ──────────────────────────────────────────────────────
             DrawerHeader(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Icon(Icons.account_circle, size: 60, color: Colors.white),
-                  SizedBox(height: 10),
+                  // Profile picture
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() {
+                        _bottomNavIndex = 2;
+                        _currentBody = _buildProfilePage();
+                        _currentTitle = 'Profil Saya';
+                      });
+                    },
+                    child: CircleAvatar(
+                      radius: 34,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: _drawerAvatar,
+                      child: _drawerAvatar == null
+                          ? const Icon(
+                              Icons.person,
+                              size: 38,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    "Halo, ${widget.namaUser}!",
-                    style: TextStyle(
+                    _namaUser,
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Tap foto untuk edit profil',
+                    style: TextStyle(color: Colors.white60, fontSize: 11),
                   ),
                 ],
               ),
             ),
 
-            // Menu Marketplace
-            ListTile(
-              leading: Icon(Icons.storefront),
-              title: Text('Marketplace (Beli)'),
+            // ── Utama ────────────────────────────────────────────────────────
+            _drawerTile(
+              icon: Icons.storefront,
+              label: 'Marketplace (Beli)',
               onTap: () => _onDrawerTapped(
                 MarketplacePage(userId: widget.idUser.toString()),
                 'Bursa Mobil',
               ),
             ),
-
-            // Menu Jual Mobil
-            ListTile(
-              leading: Icon(Icons.add_circle_outline),
-              title: Text('Jual Mobil'),
+            _drawerTile(
+              icon: Icons.add_circle_outline,
+              label: 'Jual Mobil',
               onTap: () => _onDrawerTapped(
                 JualPage(userId: widget.idUser.toString()),
                 'Jual Mobil',
               ),
             ),
-
-            // Menu Favorit
-            ListTile(
-              leading: Icon(Icons.favorite_border),
-              title: Text('Favorit Saya'),
+            _drawerTile(
+              icon: Icons.favorite_border,
+              label: 'Favorit Saya',
               onTap: () => _onDrawerTapped(
                 FavoritPage(userId: widget.idUser.toString()),
                 'Mobil Favorit',
               ),
             ),
-
-            // Menu Cari Bengkel
-            ListTile(
-              leading: Icon(Icons.build_circle_outlined),
-              title: Text('Cari Bengkel'),
+            _drawerTile(
+              icon: Icons.build_circle_outlined,
+              label: 'Cari Bengkel',
               onTap: () =>
                   _onDrawerTapped(const CariBengkelPage(), 'Cari Bengkel'),
             ),
 
-            Divider(),
+            const Divider(),
 
-            // Menu Kuis Otomotif
-            ListTile(
-              leading: Icon(Icons.quiz_outlined),
-              title: Text('Kuis Otomotif'),
-              onTap: () {
-                Navigator.pop(context); // Tutup drawer dulu
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const QuizScreen()),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: Icon(Icons.quiz_outlined),
-              title: Text('Car Maze Mini Game'),
-              onTap: () {
-                Navigator.pop(context); // Tutup drawer dulu
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const HomeScreen()),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: Icon(Icons.explore),
-              title: Text('Kompas Kiblat'),
-              onTap: () {
-                Navigator.pop(context); // Tutup drawer dulu
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const QiblaPage()),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: Icon(Icons.access_time),
-              title: Text('Konversi Waktu'),
+            // ── Fitur ────────────────────────────────────────────────────────
+            _drawerTile(
+              icon: Icons.quiz_outlined,
+              label: 'Kuis Otomotif',
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const TimePage()),
+                  MaterialPageRoute(builder: (_) => const QuizScreen()),
+                );
+              },
+            ),
+            _drawerTile(
+              icon: Icons.videogame_asset_outlined,
+              label: 'Car Maze Mini Game',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              },
+            ),
+            _drawerTile(
+              icon: Icons.explore,
+              label: 'Kompas Kiblat',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const QiblaPage()),
+                );
+              },
+            ),
+            _drawerTile(
+              icon: Icons.access_time,
+              label: 'Konversi Waktu',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const TimePage()),
                 );
               },
             ),
 
-            Divider(),
+            const Divider(),
 
-            ListTile(
-              leading: Icon(Icons.fingerprint),
-              title: Text('Daftar Sidik Jari'),
+            // ── Keamanan ─────────────────────────────────────────────────────
+            _drawerTile(
+              icon: Icons.fingerprint,
+              label: 'Daftar Sidik Jari',
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => BiometricSettingsPage(
+                    builder: (_) => BiometricSettingsPage(
                       idUser: widget.idUser.toString(),
-                      namaUser: widget.namaUser,
+                      namaUser: _namaUser,
                     ),
                   ),
                 );
               },
             ),
 
-            Divider(),
+            const Divider(),
 
+            // ── Logout ───────────────────────────────────────────────────────
             ListTile(
-              leading: Icon(Icons.logout, color: Colors.red),
-              title: Text('Logout', style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.logout, color: Colors.redAccent),
+              title: const Text(
+                'Logout',
+                style: TextStyle(color: Colors.redAccent),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _showLogoutDialog();
@@ -364,15 +441,15 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
 
-      // === BODY (Isi Halaman) ===
+      // ── Body ──────────────────────────────────────────────────────────────
       body: _currentBody,
 
-      // === BOTTOM NAVIGATION BAR ===
+      // ── Bottom Nav ────────────────────────────────────────────────────────
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _bottomNavIndex,
         onTap: _onBottomNavTapped,
         backgroundColor: Colors.white,
-        selectedItemColor: Color(0xFF1E3C72),
+        selectedItemColor: const Color(0xFF1E3C72),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
@@ -383,6 +460,19 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
+    );
+  }
+
+  // ── Helper: consistent drawer list tile ───────────────────────────────────
+  Widget _drawerTile({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: const Color(0xFF1E3C72)),
+      title: Text(label),
+      onTap: onTap,
     );
   }
 }
