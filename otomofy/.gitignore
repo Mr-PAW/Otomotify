@@ -1,3 +1,6 @@
+# Environment variables (jangan di-push! simpan IP backend di sini)
+.env
+
 # Miscellaneous
 *.class
 *.log

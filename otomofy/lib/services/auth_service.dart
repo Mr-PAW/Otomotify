@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/user.dart';
 import 'biometric_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'http://192.168.18.225:3000/api/auth';
+  /// Base URL dibaca dari file .env (key: BASE_URL).
+  /// Ubah nilai BASE_URL di .env untuk mengganti IP backend tanpa ubah kode.
+  static String get baseUrl =>
+      dotenv.env['BASE_URL'] ?? 'http://localhost:3000/api/auth';
   static const _storage = FlutterSecureStorage();
 
   // ========== TOKEN MANAGEMENT ==========

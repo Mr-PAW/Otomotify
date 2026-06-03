@@ -11,6 +11,7 @@ import '../models/user.dart';
 class ProfilePage extends StatefulWidget {
   final String userId;
   final String userName;
+
   /// Called when the user successfully saves profile changes so the parent
   /// (HomePage) can refresh the drawer name / picture.
   final void Function(String newName, String? newPicPath)? onProfileUpdated;
@@ -179,15 +180,17 @@ class _ProfilePageState extends State<ProfilePage> {
 
     setState(() => _isSavingProfile = true);
     try {
-      final result =
-          await AuthService.updateProfile(name: name, email: email);
+      final result = await AuthService.updateProfile(name: name, email: email);
       if (!mounted) return;
 
       if (result['success'] == true) {
         widget.onProfileUpdated?.call(name, _profilePicPath);
         _showSnack('Profil berhasil disimpan ✓', Colors.green);
       } else {
-        _showSnack(result['message'] ?? 'Gagal menyimpan profil', Colors.redAccent);
+        _showSnack(
+          result['message'] ?? 'Gagal menyimpan profil',
+          Colors.redAccent,
+        );
       }
     } catch (e) {
       if (mounted) _showSnack('Error: $e', Colors.redAccent);
@@ -231,7 +234,9 @@ class _ProfilePageState extends State<ProfilePage> {
         _showSnack('Password berhasil diubah ✓', Colors.green);
       } else {
         _showSnack(
-            result['message'] ?? 'Gagal mengubah password', Colors.redAccent);
+          result['message'] ?? 'Gagal mengubah password',
+          Colors.redAccent,
+        );
       }
     } catch (e) {
       if (mounted) _showSnack('Error: $e', Colors.redAccent);
@@ -280,10 +285,8 @@ class _ProfilePageState extends State<ProfilePage> {
           if (_isExampleUser)
             Container(
               width: double.infinity,
-              margin:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: Colors.amber[50],
                 borderRadius: BorderRadius.circular(12),
@@ -298,7 +301,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       'Akun contoh — perbarui profil & ubah password tidak tersedia. '
                       'Daftar atau login dengan akun nyata untuk menggunakan fitur ini.',
                       style: TextStyle(
-                          color: Colors.amber[900], fontSize: 12, height: 1.4),
+                        color: Colors.amber[900],
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
                     ),
                   ),
                 ],
@@ -333,6 +339,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   isLoading: _isSavingProfile,
                   onPressed: _saveProfile,
                   disabled: _isExampleUser,
+                  color: const Color.fromARGB(255, 60, 244, 4),
                 ),
               ],
             ),
@@ -397,7 +404,7 @@ class _ProfilePageState extends State<ProfilePage> {
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1E3C72), Color(0xFF2A5298)],
+          colors: [Color.fromARGB(255, 246, 2, 2), Color(0xFF2A5298)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -415,7 +422,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   backgroundColor: Colors.white24,
                   backgroundImage: _avatar,
                   child: _avatar == null
-                      ? const Icon(Icons.person, size: 60, color: Colors.white70)
+                      ? const Icon(
+                          Icons.person,
+                          size: 60,
+                          color: Colors.white70,
+                        )
                       : null,
                 ),
                 if (_isUploadingPic)
@@ -431,8 +442,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     shape: BoxShape.circle,
                   ),
                   padding: const EdgeInsets.all(6),
-                  child: const Icon(Icons.camera_alt,
-                      size: 18, color: Colors.white),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    size: 18,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -512,8 +526,12 @@ class _ProfilePageState extends State<ProfilePage> {
       readOnly: readOnly,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon,
-            color: readOnly ? Colors.grey : const Color(0xFF1E3C72)),
+        prefixIcon: Icon(
+          icon,
+          color: readOnly
+              ? const Color.fromARGB(255, 255, 0, 0)
+              : const Color(0xFF1E3C72),
+        ),
         suffixIcon: toggleObscure != null
             ? IconButton(
                 icon: Icon(
@@ -527,15 +545,15 @@ class _ProfilePageState extends State<ProfilePage> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-              color: readOnly ? Colors.grey[200]! : Colors.grey[300]!),
+            color: readOnly ? Colors.grey[200]! : Colors.grey[300]!,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(
-              color: readOnly
-                  ? Colors.grey[300]!
-                  : const Color(0xFF1E3C72),
-              width: 2),
+            color: readOnly ? Colors.grey[300]! : const Color(0xFF1E3C72),
+            width: 2,
+          ),
         ),
         filled: true,
         fillColor: readOnly ? Colors.grey[100] : Colors.grey[50],
@@ -568,7 +586,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 height: 22,
                 width: 22,
                 child: CircularProgressIndicator(
-                    color: Colors.white, strokeWidth: 2.5),
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
               )
             : Text(
                 label,
